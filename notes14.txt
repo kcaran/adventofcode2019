@@ -1,0 +1,11 @@
+I think this is some kind of queue (is the term 'factory' a hint?) but there's a difference between thinking about the conveyor belt of needs versus what we already have. The conveyor belt screams array but the ingredient list calls for a hash...
+
+{ FUEL => 1 }
+{ A => 7, E => 1 }
+{ ORE => 10, A => -3, A => 7, D => 1 }
+{ ORE => 10, A => 4, D => 1 }
+{ ORE => 20, A => -6, A => 7, C => 1 }
+{ ORE => 20, A => 1, C => 1 }
+{ ORE => 30, A => -9, A => 7, B => 1 }
+{ ORE => 30, A => -2,  B => 1 }
+{ ORE => 31, A => -2 }
