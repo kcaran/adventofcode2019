@@ -16,6 +16,7 @@ use Path::Tiny;
       y => $y,
       route => $value ? $route : [],
       value => $value || -1,
+      minutes => 0,
     };
 
    bless $self, $class;
@@ -67,8 +68,7 @@ use Path::Tiny;
 
     while (@{ $points }) {
       my $point = shift @{ $points };
-$self->display();
-      $self->{ steps }++;
+      # $self->display();
       for my $dir (keys %{ $dirs }) {
         my ($x, $y) = ($point->{ x } + $dirs->{ $dir }[0], $point->{ y } + $dirs->{ $dir }[1]);
         my $pos = "$x,$y";
@@ -76,13 +76,43 @@ $self->display();
         my $next_route = [ @{ $point->{ route } }, $dir ];
         my $output = $self->run( $next_route );
         $self->{ grid }{ $pos } = Point->new( $x, $y, $next_route, $output );
-        return $self->{ steps } if ($output == 2);
         next if ($output == 0);
+        if ($output == 2) {
+          $self->{ oxygen } = $self->{ grid }{ $pos };
+         }
         push (@{ $points }, $self->{ grid }{ $pos });
        }
      }
 
-    die "Did not find a solution.";
+$self->display();
+
+    return scalar @{ $self->{ oxygen }{ route } };
+   }
+
+  sub fill {
+    my ($self) = @_;
+
+    my $pos = "$self->{ oxygen }{ x },$self->{ oxygen }{ y }";
+
+    my $points = [ $self->{ grid }{ $pos } ];
+
+    while (@{ $points }) {
+      my $point = shift @{ $points };
+      my $minutes = $point->{ minutes } + 1;
+      for my $dir (keys %{ $dirs }) {
+        my ($x, $y) = ($point->{ x } + $dirs->{ $dir }[0], $point->{ y } + $dirs->{ $dir }[1]);
+        my $pos = "$x,$y";
+        next unless ($self->{ grid }{ $pos }{ value } == 1);
+        $self->{ grid }{ $pos }{ value } = 2;
+        $self->{ grid }{ $pos }{ minutes } = $minutes;
+        $self->{ minutes } = $minutes if ($self->{ minutes } < $minutes);
+        push (@{ $points }, $self->{ grid }{ $pos });
+       }
+     }
+
+$self->display();
+
+    return $self->{ minutes };
    }
 
   sub run {
@@ -103,7 +133,7 @@ $self->display();
     my $self = {
       program => $program,
       grid => {},
-      steps => 0,
+      minutes => 0,
     };
 
    bless $self, $class;
@@ -298,6 +328,8 @@ my $program = GAProgram->new( $input_file );
 
 my $grid = Grid->new( $program );
 
-print "It took ", $grid->explore(), " moves to find the droid.";
+print "It took ", $grid->explore(), " moves to find the droid.\n";
+
+print "It took ", $grid->fill(), " to fill the region with oxygen.\n";
 
 exit;
