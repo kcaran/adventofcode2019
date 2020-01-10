@@ -119,13 +119,13 @@ use Path::Tiny;
 
     $self->{ pos } += 2;
 
-    #print chr( $output );
+    print $output < 128 ? chr( $output ) : "Dust: $output\n";
 
-    if (@{ $self->{ output } } > 1 && $self->{ output }[-1] == 10 && $self->{ output }[-2] == 10) {
+    if ( 0 && @{ $self->{ output } } > 1 && $self->{ output }[-1] == 10 && $self->{ output }[-2] == 10) {
       pop @{ $self->{ output } };
       pop @{ $self->{ output } };
       my $grid = Grid->new( $self->{ output } )->display();
-      print "The alignment paratemter is $grid->{ align }.\n";
+      print "The alignment parameter is $grid->{ align }.\n";
 
       $self->{ output } = [];
      }
@@ -260,8 +260,8 @@ if ($input_file) {
 
 my $output = $program->run( $input );
 
-my $grid = Grid->new( $output );
+#my $grid = Grid->new( $output );
 
-$grid->display();
+#$grid->display();
 
 exit;
