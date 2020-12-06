@@ -8,17 +8,17 @@ use utf8;
 use Path::Tiny;
 use Storable 'dclone';
 
-my %seen_keys;
+my $seen_keys;
 
 { package Map;
 
   sub unlock_door {
     my ($self, $key) = @_;
 
-    my $id = ${key} . join( '', sort split( '', $self->{ keys } ) );
-    return if ($seen_keys{ $id } && $seen_keys{ $id } < $self->{ moves });
-    $seen_keys{ $id } = $self->{ moves };
-    $self->{ keys } = $id;
+    #my $id = $key . $self->{ keys };
+    #return if ($seen_keys{ $id } && $seen_keys{ $id } < $self->{ moves });
+    #$seen_keys{ $id } = $self->{ moves };
+    $self->{ keys } = join( '', sort ( $key, split( '', $self->{ keys } ) )  );
 
     $self->{ keys_left }--;
     my $door_pos = $self->{ doors }{ uc( $key ) };
@@ -32,7 +32,8 @@ my %seen_keys;
 
     my $new_y = $self->{ pos }[0] + $y;
     my $new_x = $self->{ pos }[1] + $x;
-    my $prev = $self->{ prev_moves }{ "$new_y,$new_x" } || '';
+    my $new_pos = "$new_y,$new_x";
+    my $prev = $self->{ prev_moves }{ $new_pos } || '';
     my $point = $self->{ map }[$new_y][$new_x];
     return if ($prev eq $self->{ keys_left });
     return if ($point eq '#' || ($point ge 'A' && $point le 'Z'));
@@ -44,7 +45,10 @@ my %seen_keys;
       return unless ($new->unlock_door( $point ));
      }
 
-    $new->{ prev_moves }{ "$new_y,$new_x" } = $new->{ keys_left };
+    my $seen = $seen_keys->{ $new_pos }{ $new->{ keys } };
+    return if ($seen && $seen < $new->{ moves });
+    $seen_keys->{ $new_pos }{ $new->{ keys } } = $new->{ moves };
+    $new->{ prev_moves }{ $new_pos } = $new->{ keys_left };
 
     return $new;
    }
