@@ -8,13 +8,22 @@ use utf8;
 use Path::Tiny;
 use Storable 'dclone';
 
+my %seen_keys;
+
 { package Map;
 
   sub unlock_door {
     my ($self, $key) = @_;
+
+    my $id = ${key} . join( '', sort split( '', $self->{ keys } ) );
+    return if ($seen_keys{ $id } && $seen_keys{ $id } < $self->{ moves });
+    $seen_keys{ $id } = $self->{ moves };
+    $self->{ keys } = $id;
+
     $self->{ keys_left }--;
     my $door_pos = $self->{ doors }{ uc( $key ) };
     $self->{ map }[$door_pos->[0]][$door_pos->[1]] = '.' if ($door_pos);
+	$self->{ map }[$self->{ pos }[0]][$self->{ pos }[1]] = '.';
     return $self;
    }
 
@@ -29,12 +38,12 @@ use Storable 'dclone';
     return if ($point eq '#' || ($point ge 'A' && $point le 'Z'));
 
     my $new = Storable::dclone( $self );
+    $new->{ moves }++;
+    $new->{ pos } = [ $new_y, $new_x ];
     if ($point ge 'a' && $point le 'z') {
-      $new->unlock_door( $point );
-	  $new->{ map }[$new_y][$new_x] = '.';
+      return unless ($new->unlock_door( $point ));
      }
 
-    $new->{ pos } = [ $new_y, $new_x ];
     $new->{ prev_moves }{ "$new_y,$new_x" } = $new->{ keys_left };
 
     return $new;
@@ -47,8 +56,10 @@ use Storable 'dclone';
      start => [],
      doors => {},
      pos => [],
+     keys => '',
      keys_left => 0,
      prev_moves => {},
+     moves => 0,
     };
 
     my $x = 0;
