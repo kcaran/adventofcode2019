@@ -1,5 +1,33 @@
 #!/usr/bin/env perl
 #
+# I had to cheat a little and look at reddit:
+#
+# https://www.reddit.com/r/adventofcode/comments/ecsw02/2019_day_18_missing_a_critical_step_of_the/
+#
+# You can think about this as a dynamic programming problem, with the
+# state being (x, y, keys collected).
+#
+# You start at a particular bot position with 0 keys, i.e. your state is
+# (bx, by, 0). You want to find the best possible score from this state,
+# which we'll call score(bx, by, 0) (representing keys as a bitfield).
+# There are a set of keys that you can reach, and the best score across
+# all reachable keys is something like
+#
+# def score(x, y, keys):
+#   return min([score(key_x, key_y, new_key | keys) + steps_to(key_x, key_y)
+#                for (key_x, key_y, new_key) in reachable(x, y, keys)])
+# Notice that this calls score recursively; you'll want to memoize calls
+# to score to cut down on evaluation time.
+#
+# My problem was that I was trying to update the map after every move, cloning
+# the object again and again with each found key and each open door.
+#
+# I was able to get the test18d.txt down but the puzzle input still took
+# a long time:
+#
+# ..such that a lot of times moving from key point a to b takes you via
+# multiple other keys, which further cuts down on possible state combinations
+# at each end. 
 #
 use strict;
 use warnings;
@@ -8,66 +36,88 @@ use utf8;
 use Path::Tiny;
 use Storable 'dclone';
 
-my $seen_keys;
+my $map;
+
+my $state;
+
+sub min_path {
+  my $num_keys = 0;
+  my $path = 0;
+  for my $k (keys %{ $state }) {
+    my $len = length( $k );
+    if ($len > $num_keys) {
+      $num_keys = $len;
+      $path = $state->{ $k };
+     }
+    elsif ($len == $num_keys && $path > $state->{ $k }) {
+      $path = $state->{ $k };
+     }
+   }
+  return $path;
+ }
 
 { package Map;
 
-  sub unlock_door {
-    my ($self, $key) = @_;
+  sub next_keys {
+    my ($self, $initial) = @_;
 
-    #my $id = $key . $self->{ keys };
-    #return if ($seen_keys{ $id } && $seen_keys{ $id } < $self->{ moves });
-    #$seen_keys{ $id } = $self->{ moves };
-    $self->{ keys } = join( '', sort ( $key, split( '', $self->{ keys } ) )  );
+    $self->{ prev_moves } = {};
+    my @moves = $map->valid_moves( $initial );
+    my @keys = ();
 
-    $self->{ keys_left }--;
-    my $door_pos = $self->{ doors }{ uc( $key ) };
-    $self->{ map }[$door_pos->[0]][$door_pos->[1]] = '.' if ($door_pos);
-	$self->{ map }[$self->{ pos }[0]][$self->{ pos }[1]] = '.';
-    return $self;
-   }
-
-  sub move {
-    my ($self, $y, $x) = @_;
-
-    my $new_y = $self->{ pos }[0] + $y;
-    my $new_x = $self->{ pos }[1] + $x;
-    my $new_pos = "$new_y,$new_x";
-    my $prev = $self->{ prev_moves }{ $new_pos } || '';
-    my $point = $self->{ map }[$new_y][$new_x];
-    return if ($prev eq $self->{ keys_left });
-    return if ($point eq '#' || ($point ge 'A' && $point le 'Z'));
-
-    my $new = Storable::dclone( $self );
-    $new->{ moves }++;
-    $new->{ pos } = [ $new_y, $new_x ];
-    if ($point ge 'a' && $point le 'z') {
-      return unless ($new->unlock_door( $point ));
+    for my $move (@moves) {
+      my ($y, $x, $cnt, $keys) = split( ',', $move );
+      my $point = $self->{ map }[$y][$x];
+      if ($point ge 'a' && $point le 'z' && index( $keys, $point ) < 0) {
+        $keys = $point . join( '', sort split( '', $keys ) );
+        if (!$state->{ $keys } || $state->{ $keys } > $cnt) {
+          push (@keys, "$y,$x,$cnt,$keys");
+          $state->{ $keys } = $cnt;
+         }
+        next;
+       }
+      push @moves, $map->valid_moves( $move );
      }
 
-    my $seen = $seen_keys->{ $new_pos }{ $new->{ keys } };
-    return if ($seen && $seen < $new->{ moves });
-    $seen_keys->{ $new_pos }{ $new->{ keys } } = $new->{ moves };
-    $new->{ prev_moves }{ $new_pos } = $new->{ keys_left };
+    return @keys;
+   }
 
-    return $new;
+  sub valid_moves {
+    my ($self, $move) = @_;
+    my @moves = ();
+
+    my ($y, $x, $cnt, $keys) = split( ',', $move );
+    $cnt++;
+    for my $dir ([ 0, 1 ], [ 0, -1 ], [ -1, 0 ], [ 1, 0 ]) {
+      my $new_y = $y + $dir->[0];
+      my $new_x = $x + $dir->[1];
+
+      my $new_pos = "$new_y,$new_x";
+      next if ($self->{ prev_moves }{ $new_pos });
+      $self->{ prev_moves }{ $new_pos } = 1;
+
+      my $point = $self->{ map }[$new_y][$new_x];
+      next if ($point eq '#');
+      next if (($point ge 'A' && $point le 'Z') && index( $keys, lc( $point )) < 0);
+      push @moves, "$new_pos,$cnt,$keys";
+     }
+
+    return @moves; 
+   }
+
+  sub start {
+    my ($self) = @_;
+
+    return "$self->{ start }[0],$self->{ start }[1],0,,";
    }
 
   sub new {
     my ($class, $input_file) = @_;
     my $self = {
      map => [],
-     start => [],
-     doors => {},
-     pos => [],
-     keys => '',
-     keys_left => 0,
-     prev_moves => {},
-     moves => 0,
     };
 
-    my $x = 0;
-    my $y = 0;
+    my ($x, $y) = (0, 0);
     for my $row ( Path::Tiny::path( $input_file )->lines_utf8( { chomp => 1 } )) {
       $x = 0;
       for my $col (split( '', $row )) {
@@ -76,19 +126,10 @@ my $seen_keys;
           $col = '.';
          }
         $self->{ map }[$y][$x] = $col;
-        $self->{ doors }{ $col } = [ $y, $x ] if ($col ge 'A' and $col le 'Z');
-        $self->{ keys_left }++ if ($col ge 'a' and $col le 'z');
         $x++;
        }
       $y++;
      }
-
-    $self->{ pos }[0] = $self->{ start }[0];
-    $self->{ pos }[1] = $self->{ start }[1];
-
-    $self->{ num_cols } = $x;
-    $self->{ num_rows } = $y;
-    $self->{ prev_moves }{ "$self->{ pos }[0],$self->{ pos }[1]" } = $self->{ keys_left };
 
     bless $self, $class;
     return $self;
@@ -97,22 +138,14 @@ my $seen_keys;
 
 my $input_file = $ARGV[0] || 'input18.txt';
 
-my $moves = [ Map->new( $input_file ) ];
-my $num_moves = 0;
-while (@{ $moves }) {
-  my $new_moves = [];
-  $num_moves++;
-  for my $m (@{ $moves }) {
-    for my $dir ([ 0, 1 ], [ 0, -1 ], [ -1, 0 ], [ 1, 0 ]) {
-      my $next = $m->move( $dir->[0], $dir->[1] );
-      next unless ($next);
-      die "We found all the keys in $num_moves\n" if ($next->{ keys_left } == 0);
-      push @{ $new_moves }, $next;
-     }
-   }
-  $moves = $new_moves;
-print "Move $num_moves has ", scalar @{ $moves }, " possible moves.\n";
+$map = Map->new( $input_file );
+
+my @moves = $map->next_keys( $map->start() );
+for my $move (@moves) {
+  print "For $move, there are now ", scalar( @moves ), " moves\n";
+  push @moves, $map->next_keys( $move );
  }
 
-print "We did not find all of the keys. :-(\n";
+print "We found all the keys in ", min_path(), " moves.\n";
+
 exit;
