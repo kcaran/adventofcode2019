@@ -29,12 +29,6 @@
 # multiple other keys, which further cuts down on possible state combinations
 # at each end. 
 #
-# Other notes:
-# POEM:
-# https://www.reddit.com/r/adventofcode/comments/ec8090/2019_day_18_solutions/#t1_fbqel3c
-# https://medium.com/@werner.altewischer/advent-of-code-day-18-2019-the-real-challenge-aea3d4e96708
-# https://github.com/werner77/AdventOfCode/blob/master/src/main/kotlin/com/behindmedia/adventofcode/year2019/Day18.kt
-#
 use strict;
 use warnings;
 use utf8;
@@ -122,14 +116,16 @@ sub min_path {
     my $self = {
      map => [],
      key => {},
+     bots => [],
     };
 
     my ($x, $y) = (0, 0);
+    my @start;
     for my $row ( Path::Tiny::path( $input_file )->lines_utf8( { chomp => 1 } )) {
       $x = 0;
       for my $col (split( '', $row )) {
         if ($col eq '@') {
-          $self->{ start } = [ $y, $x ];
+          @start = ( $y, $x );
           $col = '.';
          }
         elsif ($col ge 'a' && $col le 'z') {
@@ -141,6 +137,17 @@ sub min_path {
       $y++;
      }
 
+    # Update map for part b
+    ($y, $x) = @start;
+    $self->{ bots } = [ [$y - 1, $x - 1 ],
+                        [$y + 1, $x - 1 ],
+                        [$y - 1, $x + 1 ],
+                        [$y + 1, $x + 1 ] ];
+    $self->{ map }[$y-1][$x] = '#';
+    $self->{ map }[$y+1][$x] = '#';
+    $self->{ map }[$y][$x-1] = '#';
+    $self->{ map }[$y][$x+1] = '#';
+
     bless $self, $class;
     return $self;
    }
@@ -150,7 +157,11 @@ my $input_file = $ARGV[0] || 'input18.txt';
 
 $map = Map->new( $input_file );
 
-my @moves = $map->next_keys( $map->start() );
+my @moves;
+for (my $b = 0; $b < 4; $b++) {
+  push @moves, $map->next_keys( $map->{ bots }[$b] );
+ }
+
 while (@moves) {
   my $move = shift @moves;
   print "For $move, there are now ", scalar( @moves ), " moves\n";
