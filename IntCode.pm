@@ -1,10 +1,13 @@
 #!/usr/bin/env perl
 #
+package IntCode;
+
 use strict;
 use warnings;
 use utf8;
 
-package IntCode;
+use Term::ReadKey;
+Term::ReadKey::ReadMode( 'cbreak' );
 
   sub proc_1_2 {
     my ($self, $opcode) = @_;
@@ -40,6 +43,13 @@ package IntCode;
   sub proc_3 {
     my ($self) = @_;
     my $modes = int( $self->{ code }[ $self->{ pos } ] / 100 );
+
+    unless (@{ $self->{ input } }) {
+      my $input_key = uc( Term::ReadKey::ReadKey(0) );
+      $self->{ echo } .= $input_key;
+      $self->{ input } = [ ord( $input_key ) ];
+      print $input_key;
+     }
 
     # Input - no immediate mode
     my $addr = $self->{ code }[ $self->{ pos } + 1 ];
