@@ -18,8 +18,18 @@ my $maze;
     for my $portal (keys %{ $maze->{ pass } }) {
       next if ($portal eq 'AA' || $portal eq 'ZZ');
       my $pass = $maze->{ pass }{ $portal };
-      return $pass->[1] if ($pass->[0] eq $pos and !$maze->{ taken }{ $pass->[1] });
-      return $pass->[0] if ($pass->[1] eq $pos and !$maze->{ taken }{ $pass->[0] });
+      if ($pass->[0] eq $pos && $self->{ level } > 0) {
+        my $newlevel = $self->{ level } - 1;
+        if (!$maze->{ taken }{ "$pass->[1],$newlevel" }) {
+          return "$pass->[1],$newlevel";
+         }
+       }
+      if ($pass->[1] eq $pos) {
+        my $newlevel = $self->{ level } + 1;
+        if (!$maze->{ taken }{ "$pass->[0],$newlevel" }) {
+          return "$pass->[0],$newlevel";
+         }
+       }
      }
 
     return;
@@ -34,10 +44,11 @@ my $maze;
     my @moves = ();
     my $x = $self->{ x };
     my $y = $self->{ y };
-    push @moves, ($y - 1) . ',' . $x if ($y > 0 && $maze->{ map }[$y-1][$x] eq '.');
-    push @moves, ($y + 1) . ',' . $x if ($y < @{ $maze->{ map } } - 1 && $maze->{ map }[$y+1][$x] eq '.');
-    push @moves, $y . ',' . ($x - 1) if ($x > 0 && $maze->{ map }[$y][$x-1] eq '.');
-    push @moves, $y . ',' . ($x + 1) if ($x < @{ $maze->{ map }[$y] } - 1 && $maze->{ map }[$y][$x+1] eq '.');
+    my $level = $self->{ level };
+    push @moves, ($y - 1) . ',' . $x . ",$level" if ($y > 0 && $maze->{ map }[$y-1][$x] eq '.');
+    push @moves, ($y + 1) . ',' . $x . ",$level" if ($y < @{ $maze->{ map } } - 1 && $maze->{ map }[$y+1][$x] eq '.');
+    push @moves, $y . ',' . ($x - 1) . ",$level" if ($x > 0 && $maze->{ map }[$y][$x-1] eq '.');
+    push @moves, $y . ',' . ($x + 1) . ",$level" if ($x < @{ $maze->{ map }[$y] } - 1 && $maze->{ map }[$y][$x+1] eq '.');
 
     return grep { !$maze->{ taken }{ $_ } || $maze->{ taken }{ $_ } != 1 } @moves;
    }
@@ -45,9 +56,9 @@ my $maze;
   sub move {
     my ($self, $pos) = @_;
 
-    ($self->{ y }, $self->{ x }) = split( ',', $pos );
+    ($self->{ y }, $self->{ x }, $self->{ level }) = split( ',', $pos );
  
-    if ($maze->{ pass }{ 'ZZ' }[0] eq $pos) {
+    if ("$maze->{ pass }{ 'ZZ' }[0],0" eq $pos) {
       die "We completed the maze in ", $self->{ steps }, "\n";
      }
     $self->{ steps }++;
@@ -60,6 +71,7 @@ my $maze;
     my ($class, $pos) = @_;
     my $self = {
      steps => 0,
+     level => 0,
     };
     bless $self, $class;
 
@@ -94,17 +106,19 @@ my $maze;
       while ($row =~ /([A-Z]{2})/g) {
         my $pass = $1;
         my $index = $-[1];
-        push @{ $self->{ pass }{ $pass } }, ($y - 2) . ',' . ($index - 3) if (substr( $row, $index - 1, 1) eq '.');
-        push @{ $self->{ pass }{ $pass } }, ($y - 2) . ',' . ($index) if (substr( $row, $index + 2, 1) eq '.');
+        my $inner = ($index > 0 && $index < length( $row ) - 2) ? 1 : 0;
+        $self->{ pass }{ $pass }[$inner] = ($y - 2) . ',' . ($index - 3) if (substr( $row, $index - 1, 1) eq '.');
+        $self->{ pass }{ $pass }[$inner] = ($y - 2) . ',' . ($index) if (substr( $row, $index + 2, 1) eq '.');
        }
 
-      while ($row =~ /\W([A-Z])\W/g) {
+      while ($row =~ /\b([A-Z])\b/g) {
         my $pass = $1;
         my $index = $-[1];
+        my $inner = ($y < @input - 3) ? 1 : 0;
         my $next = substr( $input[$y+1], $index, 1 );
         if ($next =~ tr/A-Z//) {
-          push @{ $self->{ pass }{ "$pass$next" } }, ($y - 3) . ',' . ($index - 2) if (substr( $input[$y - 1], $index, 1 ) eq '.');
-          push @{ $self->{ pass }{ "$pass$next" } }, ($y) . ',' . ($index - 2) if ($y < @input - 2 && substr( $input[$y + 2], $index, 1 ) eq '.');
+          $self->{ pass }{ "$pass$next" }[$inner] = ($y - 3) . ',' . ($index - 2) if (substr( $input[$y - 1], $index, 1 ) eq '.');
+          $self->{ pass }{ "$pass$next" }[$inner] = ($y) . ',' . ($index - 2) if ($y < @input - 2 && substr( $input[$y + 2], $index, 1 ) eq '.');
          } 
        }
 
@@ -122,12 +136,12 @@ my $maze;
 my $input_file = $ARGV[0] || 'input20.txt';
 
 $maze = Maze->new( $input_file );
-my $start = $maze->{ pass }{ 'AA' }[0];
+my $start = $maze->{ pass }{ 'AA' }[0] . ",0";
 my @moves = ( Move->new( $start ) );
 while (@moves) {
   my $curr = shift @moves;
   my @nextmoves = $curr->nextmoves();
-# print "The next moves for ($curr->{y},$curr->{x}) are ", join( ' + ', @nextmoves ), "\n";
+# print "The next moves for ($curr->{y},$curr->{x},$curr->{level}) are ", join( ' + ', @nextmoves ), "\n";
   for my $next (@nextmoves) {
     my $nmove = dclone( $curr );
     $nmove->move( $next );
