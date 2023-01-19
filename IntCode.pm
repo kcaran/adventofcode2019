@@ -7,7 +7,6 @@ use warnings;
 use utf8;
 
 use Term::ReadKey;
-Term::ReadKey::ReadMode( 'cbreak' );
 
   sub proc_1_2 {
     my ($self, $opcode) = @_;
@@ -40,9 +39,8 @@ Term::ReadKey::ReadMode( 'cbreak' );
     return 1;
    }
 
-  sub proc_3 {
+  sub read_input {
     my ($self) = @_;
-    my $modes = int( $self->{ code }[ $self->{ pos } ] / 100 );
 
     unless (@{ $self->{ input } }) {
       my $input_key = uc( Term::ReadKey::ReadKey(0) );
@@ -50,6 +48,15 @@ Term::ReadKey::ReadMode( 'cbreak' );
       $self->{ input } = [ ord( $input_key ) ];
       print $input_key;
      }
+
+    return $self;
+   }
+
+  sub proc_3 {
+    my ($self) = @_;
+    my $modes = int( $self->{ code }[ $self->{ pos } ] / 100 );
+
+    $self->read_input();
 
     # Input - no immediate mode
     my $addr = $self->{ code }[ $self->{ pos } + 1 ];
@@ -65,6 +72,14 @@ Term::ReadKey::ReadMode( 'cbreak' );
     return 1;
    }
 
+  sub write_output {
+    my ($self) = @_;
+
+    print "@{ $self->{ output } }\n";
+
+    return;
+   }
+
   sub proc_4 {
     my ($self) = @_;
     my $modes = int( $self->{ code }[ $self->{ pos } ] / 100 );
@@ -77,16 +92,7 @@ Term::ReadKey::ReadMode( 'cbreak' );
 
     $self->{ pos } += 2;
 
-    print $output < 128 ? chr( $output ) : "Dust: $output\n";
-
-    if ( 0 && @{ $self->{ output } } > 1 && $self->{ output }[-1] == 10 && $self->{ output }[-2] == 10) {
-      pop @{ $self->{ output } };
-      pop @{ $self->{ output } };
-      my $grid = Grid->new( $self->{ output } )->display();
-      print "The alignment parameter is $grid->{ align }.\n";
-
-      $self->{ output } = [];
-     }
+    $self->write_output();
 
     return 1;
    }

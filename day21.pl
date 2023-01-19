@@ -34,6 +34,16 @@ Term::ReadKey::ReadMode( 'cbreak' );
     return ($self);
    }
 =cut
+  sub write_output {
+   my ($self) = @_;
+
+   while (@{ $self->{ output } }) {
+     my $output = shift @{ $self->{ output } };
+     print $output < 128 ? chr( $output ) : "Dust: $output\n";
+    }
+
+   return $self;
+  }
 };
 
 my $program = MyProgram->new( 'input21.txt' );
