@@ -19,15 +19,16 @@
 # Notice that this calls score recursively; you'll want to memoize calls
 # to score to cut down on evaluation time.
 #
-# My problem was that I was trying to update the map after every move, cloning
-# the object again and again with each found key and each open door.
+# My problem was that I was trying to update the map after every move,
+# cloning the object again and again with each found key and
+# each open door.
 #
 # I was able to get the test18d.txt down but the puzzle input still took
 # a long time:
 #
 # ..such that a lot of times moving from key point a to b takes you via
-# multiple other keys, which further cuts down on possible state combinations
-# at each end. 
+# multiple other keys, which further cuts down on possible state
+# combinations at each end.
 #
 use strict;
 use warnings;
@@ -66,17 +67,21 @@ sub min_path {
     my @keys = ();
 
     for my $move (@moves) {
-      my ($y, $x, $cnt, $keys) = split( ',', $move );
-      my $point = $self->{ map }[$y][$x];
+      my (@y, @x, $cnt, $keys);
+      ($y[0], $x[0], $y[1], $x[1], $y[2], $x[2], $y[3], $x[3], $cnt, $keys) = split( ',', $move );
+    for my $bot (0 .. 3) {
+      my $point = $self->{ map }[$y[$bot]][$x[$bot]];
       if ($point ge 'a' && $point le 'z' && index( $keys, $point ) < 0) {
         $keys = $point . join( '', sort split( '', $keys ) );
         if (!$state->{ $keys } || $state->{ $keys } > $cnt) {
-          push (@keys, "$y,$x,$cnt,$keys");
+          my $pos = join( ',', map{ "$y[$_],$x[$_]" } 0 .. 3 );
+          push (@keys, "$pos,$cnt,$keys");
           $state->{ $keys } = $cnt;
          }
         next;
        }
       push @moves, $map->valid_moves( $move );
+     }
      }
 
     return @keys;
@@ -86,29 +91,36 @@ sub min_path {
     my ($self, $move) = @_;
     my @moves = ();
 
-    my ($y, $x, $cnt, $keys) = split( ',', $move );
+    my (@y, @x, $cnt, $keys);
+    ($y[0], $x[0], $y[1], $x[1], $y[2], $x[2], $y[3], $x[3], $cnt, $keys) = split( ',', $move );
     $cnt++;
-    for my $dir ([ 0, 1 ], [ 0, -1 ], [ -1, 0 ], [ 1, 0 ]) {
-      my $new_y = $y + $dir->[0];
-      my $new_x = $x + $dir->[1];
 
-      my $new_pos = "$new_y,$new_x";
+    for my $bot (0 .. 3) {
+    for my $dir ([ 0, 1 ], [ 0, -1 ], [ -1, 0 ], [ 1, 0 ]) {
+      my @new_y = @y;
+      my @new_x = @x;
+      $new_y[$bot] = $y[$bot] + $dir->[0];
+      $new_x[$bot] = $x[$bot] + $dir->[1];
+
+      my $point = $self->{ map }[$new_y[$bot]][$new_x[$bot]];
+      next if ($point eq '#');
+      next if (($point ge 'A' && $point le 'Z') && index( $keys, lc( $point )) < 0);
+
+      my $new_pos = join( ',', map{ "$new_y[$_],$new_x[$_]" } 0 .. 3 );
       next if ($self->{ prev_moves }{ $new_pos });
       $self->{ prev_moves }{ $new_pos } = 1;
 
-      my $point = $self->{ map }[$new_y][$new_x];
-      next if ($point eq '#');
-      next if (($point ge 'A' && $point le 'Z') && index( $keys, lc( $point )) < 0);
       push @moves, "$new_pos,$cnt,$keys";
      }
+     }
 
-    return @moves; 
+    return @moves;
    }
 
   sub start {
     my ($self) = @_;
 
-    return "$self->{ start }[0],$self->{ start }[1],0,,";
+    return $self->{ start };
    }
 
   sub new {
@@ -116,7 +128,6 @@ sub min_path {
     my $self = {
      map => [],
      key => {},
-     bots => [],
     };
 
     my ($x, $y) = (0, 0);
@@ -139,14 +150,11 @@ sub min_path {
 
     # Update map for part b
     ($y, $x) = @start;
-    $self->{ bots } = [ [$y - 1, $x - 1 ],
-                        [$y + 1, $x - 1 ],
-                        [$y - 1, $x + 1 ],
-                        [$y + 1, $x + 1 ] ];
     $self->{ map }[$y-1][$x] = '#';
     $self->{ map }[$y+1][$x] = '#';
     $self->{ map }[$y][$x-1] = '#';
     $self->{ map }[$y][$x+1] = '#';
+    $self->{ start } = join( ',', $y-1, $x-1, $y+1, $x-1, $y-1, $x+1, $y+1, $x+1, 0, undef );
 
     bless $self, $class;
     return $self;
@@ -157,10 +165,7 @@ my $input_file = $ARGV[0] || 'input18.txt';
 
 $map = Map->new( $input_file );
 
-my @moves;
-for (my $b = 0; $b < 4; $b++) {
-  push @moves, $map->next_keys( $map->{ bots }[$b] );
- }
+my @moves = $map->next_keys( $map->start() );
 
 while (@moves) {
   my $move = shift @moves;
