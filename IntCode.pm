@@ -165,7 +165,7 @@ use Term::ReadKey;
   sub step {
     my ($self) = @_;
     my $opcode = $self->{ code }[ $self->{ pos } ] % 100;
-   
+#print "$self->{ addr }: $self->{ pos } ($opcode)\n";
     return 0 if ($opcode == 99);
     return $self->proc_1_2( $opcode ) if ($opcode <= 2);
     return $self->proc_3() if ($opcode == 3);
@@ -203,7 +203,9 @@ use Term::ReadKey;
     my $self = {};
     bless $self, $class;
 
-    $self->{ init } = [ split /,/, Path::Tiny::path( $input_file )->slurp_utf8() ];
+    my $input = Path::Tiny::path( $input_file )->slurp_utf8();
+    chomp $input;
+    $self->{ init } = [ split /,/, $input ];
     $self->init();
 
     return $self;
