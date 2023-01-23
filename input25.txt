@@ -1,0 +1,58 @@
+east
+take festive hat
+east
+take food ration
+east
+take spool of cat6
+west
+west
+south
+east
+east
+take fuel cell
+east
+south
+south
+west
+west
+west
+west
+east
+north
+west
+north
+south
+west
+take hologram
+north
+take space heater
+east
+take space law space brochure
+east
+take tambourine
+north
+south
+south
+north
+west
+south
+north
+west
+south
+east
+east
+south
+east
+east
+east
+south
+drop festive hat
+drop food ration
+drop spool of cat6
+drop fuel cell
+drop hologram
+drop space heater
+drop space law space brochure
+drop tambourine
+inv
+
